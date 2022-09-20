@@ -13,6 +13,9 @@ The component is developed by [Alon Teplitsky](https://www.linkedin.com/in/alon-
 ### HACS
 
 1. Install [HACS](https://hacs.xyz/)
+
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=0xAlon&repository=dolphin&category=integration" target="_blank"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." /></a>
+
 2. Go to HACS "Integrations >" section
 3. In the lower right click "+ Explore & Download repositories"
 4. Search for "dolphin" and add it
