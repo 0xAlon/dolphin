@@ -20,8 +20,11 @@ The component is developed by [Alon Teplitsky](https://www.linkedin.com/in/alon-
 3. In the lower right click "+ Explore & Download repositories"
 4. Search for "dolphin" and add it
 5. Restart Home Assistant
-5. In the Home Assistant UI go to "Configuration"
-6. Click "Integrations"
+
+<a href="https://my.home-assistant.io/redirect/config_flow_start/?domain=dolphin" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg" alt="Open your Home Assistant instance and start setting up a new integration." /></a>
+
+5. In the Home Assistant UI go to "Settings"
+6. Click "Devices & Services"
 7. Click "+ Add Integration"
 8. Search for "dolphin"
 
