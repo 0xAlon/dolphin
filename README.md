@@ -2,7 +2,7 @@
 
 [Home Assistant](https://www.home-assistant.io/) Integration for [Dolphin](https://www.dolphinboiler.com) Boiler - Smart Water Heating Control
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
 <p align="center"><img src="https://raw.githubusercontent.com/home-assistant/brands/43fe40e19cc76a6d9b18a38bb178f6dcc6ba05d5/custom_integrations/dolphin/logo.png" width="647" height="128" alt=""/></p>
 
