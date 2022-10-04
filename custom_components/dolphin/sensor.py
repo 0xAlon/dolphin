@@ -4,12 +4,7 @@ from .const import DOMAIN
 
 from homeassistant.core import callback
 from .coordinator import EnergyCoordinator
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -24,9 +19,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
     dolphin = hass.data[DOMAIN][config_entry.entry_id]
 
     for device in dolphin.devices:
-        coordinator = EnergyCoordinator(hass, dolphin, device.device_name)
-        hass.async_create_task(coordinator.async_request_refresh())
-        entities.append(DolphinPower(hass=hass, api=dolphin, coordinator=coordinator, device=device.device_name))
+        if await hass.async_add_executor_job(dolphin.is_energy_meter, device.device_name):
+            coordinator = EnergyCoordinator(hass, dolphin, device.device_name)
+            # hass.async_create_task(coordinator.async_request_refresh())
+            entities.append(DolphinPower(hass=hass, api=dolphin, coordinator=coordinator, device=device.device_name))
 
     async_add_entities(entities)
 
@@ -45,8 +41,8 @@ class DolphinPower(CoordinatorEntity, SensorEntity):
         self._coordinator = coordinator
 
     @property
-    def unique_id(self):
-        return self._device
+    def entity_id(self):
+        return f"sensor.dolphin_{self._device.lower()}"
 
     @property
     def name(self):

@@ -4,18 +4,23 @@ class Device(object):
 
     def __init__(self, device_name: str = None, nickname: str = None):
         self.device_name = device_name if device_name else None
-        self.nickname = nickname if not "None" else None
+        self.nickname = nickname if nickname else None
 
 
 class Data(object):
     power: str
     temperature: str
     target: str
+    shower: list[str]
+    shabbat: bool
 
-    def __init__(self, power: str = None, temperature: str = None, target: str = None):
+    def __init__(self, power: str = None, temperature: str = None, target: str = None, shower: list[str] = None,
+                 shabbat: bool = False):
         self.power = power if power else None
         self.temperature = temperature if temperature else None
         self.target = target if target else None
+        self.shower = shower if shower else None
+        self.shabbat = shabbat
 
 
 class Energy(object):

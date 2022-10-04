@@ -5,13 +5,10 @@ from .const import DOMAIN
 from typing import Any
 
 from homeassistant.components.climate import (
-    PLATFORM_SCHEMA,
     ClimateEntity,
     ClimateEntityFeature,
-    HVACAction,
     HVACMode,
     ClimateEntity,
-    ATTR_TEMPERATURE
 )
 
 from .coordinator import ClimateCoordinator
@@ -35,9 +32,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     for device in dolphin.devices:
         coordinator = ClimateCoordinator(hass, dolphin, device.device_name)
-        hass.async_create_task(coordinator.async_request_refresh())
+        # hass.async_create_task(coordinator.async_request_refresh())
         entities.append(DolphinWaterHeater(coordinator=coordinator, hass=hass, api=dolphin,
-                                           device=device.device_name))
+                                           device=device))
 
     async_add_entities(entities)
 
@@ -49,9 +46,13 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     def __init__(self, coordinator: DataUpdateCoordinator, hass, api, device):
         CoordinatorEntity.__init__(self, coordinator)
         self._api = api
-        self._device = device
+        self._device = device.device_name
         self._hass = hass
-        self._name = device
+
+        if device.nickname is None:
+            self._name = "Dolphin"
+        else:
+            self._name = device.nickname
 
         self._unit = TEMP_CELSIUS
         self._current_temperature = None
@@ -68,15 +69,16 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         self._attr_hvac_mode = HVACMode.OFF
         self._coordinator = coordinator
 
+        self._available = True
+
     @property
     def name(self):
         """Return the device name."""
         return self._name
 
     @property
-    def unique_id(self):
-        """Return the device id."""
-        return self._device
+    def entity_id(self):
+        return f"climate.dolphin_{self._device.lower()}"
 
     @property
     def icon(self):
@@ -116,6 +118,11 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         """Return the maximum temperature."""
         return self._attr_max_temp
 
+    @property
+    def available(self):
+        """Return availability."""
+        return self._available
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set temperature."""
         if kwargs.get('temperature') >= float(self._current_temperature):
@@ -150,12 +157,18 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
+
         try:
             data = self._coordinator.data
 
             if data is None:
                 pass
             else:
+                if data.shabbat:
+                    self._available = True
+                else:
+                    self._available = False
+
                 if data.power.lower() == "off":
                     self._attr_hvac_mode = HVACMode.OFF
                 else:

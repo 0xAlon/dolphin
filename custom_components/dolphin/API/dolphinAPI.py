@@ -1,9 +1,7 @@
+from xmlrpc.client import Boolean
 import requests
 from .user import User
 from .device import Device, Data, Energy, Settings
-import logging
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class dolphinAPI:
@@ -60,11 +58,22 @@ class dolphinAPI:
                 return None
         except KeyError:
 
-            return Data(
-                power=response["Power"],
-                temperature=response["Temperature"],
-                target=response["targetTemperature"],
-            )
+            if 'Shabbat' in response:
+                return Data(
+                    power=response["Power"],
+                    temperature=response["Temperature"],
+                    target=response["targetTemperature"],
+                    shower=response["showerTemperature"],
+                    shabbat=False,
+                )
+            else:
+                return Data(
+                    power=response["Power"],
+                    temperature=response["Temperature"],
+                    target=response["targetTemperature"],
+                    shower=response["showerTemperature"],
+                    shabbat=True,
+                )
 
     def turn_on_manually(self, device: Device) -> None:
         payload = {
@@ -160,3 +169,16 @@ class dolphinAPI:
         response = requests.post(f"{dolphinAPI.ENDPOINT}/HA/V1/getSettings.php", data=payload).json()
 
         return Settings(shabbat=response["isShabbatEnabled"], fixed_temperature=response["isFixedTemperatureEnabled"])
+
+    def is_energy_meter(self, device) -> Boolean:
+
+        payload = {
+            "deviceName": device,
+            "email": self._user.email,
+            "API_Key": self._user.access_key,
+
+        }
+
+        response = requests.post(f"{dolphinAPI.ENDPOINT}/HA/V1/isEnergyMeter.php", data=payload).json()
+
+        return True if response['isEnergyMeter'] == '1' else False
