@@ -5,7 +5,8 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
-from .API.dolphinAPI import dolphinAPI
+
+from .API.dolphin import Dolphin, User
 from .const import CONF_USERNAME, CONF_PASSWORD, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,7 +23,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._errors = {}
 
     async def async_step_user(self, user_input: dict[str, str, Any] | None = None) -> FlowResult:
-        """Handle the otp request step."""
         self._errors = {}
 
         if user_input is not None:
@@ -55,5 +55,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _test_credentials(self, username, password) -> bool:
-        return await self.hass.async_add_executor_job(
-            dolphinAPI.validate_user, username, password)
+
+        async with Dolphin() as dolphin:
+            user = User
+            user.email = username
+            user = await dolphin.getAPIkey(user, password)
+            if user.api != "failed":
+                return True
+        return False

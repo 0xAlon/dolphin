@@ -1,40 +1,38 @@
 import logging
-
-from .const import DOMAIN
-
-from homeassistant.core import callback
-from .coordinator import EnergyCoordinator
+from typing import Callable, List
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.typing import HomeAssistantType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from .coordinator import UpdateCoordinator
+from .const import (
+    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-
-async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
-    entities = []
-
-    dolphin = hass.data[DOMAIN][config_entry.entry_id]
-
-    for device in dolphin.devices:
-        if await hass.async_add_executor_job(dolphin.is_energy_meter, device.device_name):
-            coordinator = EnergyCoordinator(hass, dolphin, device.device_name)
-            # hass.async_create_task(coordinator.async_request_refresh())
-            entities.append(DolphinPower(hass=hass, api=dolphin, coordinator=coordinator, device=device.device_name))
-
-    async_add_entities(entities)
+PARALLEL_UPDATES = 1
 
 
-class DolphinPower(CoordinatorEntity, SensorEntity):
+async def async_setup_entry(
+        hass: HomeAssistantType,
+        entry: ConfigEntry,
+        async_add_entities: Callable[[List[Entity], bool], None],
+) -> None:
+    coordinator: UpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    switches = []
 
-    def __init__(self, hass, api, coordinator: DataUpdateCoordinator, device):
+    for device in coordinator.data.keys():
+        switches.append(PowerSensor(hass=hass, coordinator=coordinator, device=device))
+
+    async_add_entities(switches)
+
+
+class PowerSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, hass, coordinator, device):
         CoordinatorEntity.__init__(self, coordinator)
         self._hass = hass
-        self._api = api
-        self._device = hass
-        self._current = 0
         self._device = device
         self._unit_of_measurement = "A"
         self._state_class = "current"
@@ -54,26 +52,8 @@ class DolphinPower(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        return self._current
-
-    def get_coordinator(self):
-        return self._coordinator
+        return self._coordinator.data[self._device].energy
 
     @property
     def unit_of_measurement(self):
         return self._unit_of_measurement
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        try:
-            data = self._coordinator.data
-
-            if data is None:
-                pass
-            else:
-                self._current = data.energy
-
-        except KeyError:
-            return
-        self.async_write_ha_state()

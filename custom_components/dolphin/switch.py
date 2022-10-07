@@ -1,57 +1,46 @@
 import logging
-
+from typing import Callable, List
 from homeassistant.components.switch import SwitchEntity
-from .const import DOMAIN
-from homeassistant.core import callback
-from .coordinator import ClimateCoordinator
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from .coordinator import UpdateCoordinator
+from .const import (
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 1
 
-async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
-    entities = []
-    dolphin = hass.data[DOMAIN][config_entry.entry_id]
 
-    for device in dolphin.devices:
-        coordinator = ClimateCoordinator(hass, dolphin, device.device_name)
-        # hass.async_create_task(coordinator.async_request_refresh())
-        entities.append(ShabbatSwitch(hass=hass, coordinator=coordinator, api=dolphin, device=device.device_name))
+async def async_setup_entry(
+        hass: HomeAssistantType,
+        entry: ConfigEntry,
+        async_add_entities: Callable[[List[Entity], bool], None],
+) -> None:
+    """Set up Dolphin switch based on a config entry."""
+    coordinator: UpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    switches = []
 
-        drops = await hass.async_add_executor_job(dolphin.get_main_screen_data, device.device_name)
+    for device in coordinator.data.keys():
+        switches.append(ShabbatSwitch(hass=hass, coordinator=coordinator, device=device))
+        for switch in range(1, 7):
+            switches.append(DropSwitch(hass=hass, coordinator=coordinator, index=switch, device=device))
 
-        for index in range(1, 7):
-            entities.append(DropSwitch(hass=hass, coordinator=coordinator, api=dolphin, device=device.device_name,
-                                       drop=drops, index=index))
-
-    async_add_entities(entities)
+    async_add_entities(switches)
 
 
 class DropSwitch(CoordinatorEntity, SwitchEntity):
-    def __init__(self, hass, coordinator, api, device, drop, index):
+
+    def __init__(self, hass, coordinator, index, device):
         CoordinatorEntity.__init__(self, coordinator)
         self._hass = hass
-        self._api = api
-        self._device = device
         self._id = index
-
-        try:
-            self._temp = drop.shower[index - 1]['temp']
-        except:
-            self._temp = None
-
-        self._is_on = False
         self._coordinator = coordinator
-
-        if self._temp is not None:
-            self._available = True
-        else:
-            self._available = False
-
-    @property
-    def available(self):
-        """Return availability."""
-        return self._available
+        self._device = device
+        self._is_on = False
 
     @property
     def entity_id(self):
@@ -59,11 +48,27 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
 
     @property
     def name(self):
-        return f"{self._id} Shower - {self._temp}°C" if self._id == 1 else f"{self._id} Showers - {self._temp}°C"
+        if self._coordinator.data[self._device].showerTemperature != None:
+            showerTemperature = self._coordinator.data[self._device].showerTemperature[self._id - 1]['temp'] if len(
+                self._coordinator.data[self._device].showerTemperature) > self._id - 1 else None
+        else:
+            showerTemperature = None
+        return f"{self._id} Shower - {showerTemperature}°C" if self._id == 1 else f"{self._id} Showers - {showerTemperature}°C"
 
     @property
     def icon(self):
         return "mdi:shower"
+
+    @property
+    def available(self):
+        """Return availability."""
+        if self._coordinator.data[self._device].shabbat:
+            return False
+        if self._coordinator.data[self._device].showerTemperature != None:
+            if len(self._coordinator.data[self._device].showerTemperature) > self._id - 1:
+                return True
+
+        return False
 
     @property
     def is_on(self):
@@ -71,55 +76,31 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self):
 
-        current_temp = self._hass.states.get(f"climate.dolphin_{self._device.lower()}").attributes[
-            'current_temperature']
-        if current_temp <= self._temp:
-            await self._hass.async_add_executor_job(self._api.turn_on_temperature, self._device, self._temp)
+        current_temp = self._coordinator.data[self._device].temperature
+        drop_temperature = self._coordinator.data[self._device].showerTemperature[self._id - 1]['temp']
+
+        if current_temp <= drop_temperature:
+            await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user, drop_temperature,
+                                                                self._device)
             self._is_on = True
+            await self.coordinator.async_request_refresh()
             self.async_write_ha_state()
 
     async def async_turn_off(self):
 
-        await self._hass.async_add_executor_job(
-            self._api.turn_off_manually, self._device)
+        await self._coordinator.dolphin.turn_off_manually(self._coordinator.dolphin._user, self._device)
         self._is_on = False
-        self.async_write_ha_state()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        try:
-            data = self._coordinator.data
-            if len(data.shower) >= self._id:
-                temp = data.shower[self._id - 1]['temp']
-                self._temp = temp
-                self._available = True
-            else:
-                self._temp = None
-                self._available = False
-
-            if data.power.lower() == "off":
-                self._is_on = False
-                self.async_write_ha_state()
-
-        except KeyError:
-            return
-        except AttributeError:
-            return
-
-        self.async_schedule_update_ha_state(True)
+        await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
 
 
 class ShabbatSwitch(CoordinatorEntity, SwitchEntity):
 
-    def __init__(self, hass, coordinator, api, device):
+    def __init__(self, hass, coordinator, device):
         CoordinatorEntity.__init__(self, coordinator)
         self._hass = hass
-        self._api = api
-        self._device = device
-        self._is_on = False
         self._coordinator = coordinator
+        self._device = device
 
     @property
     def entity_id(self):
@@ -130,38 +111,19 @@ class ShabbatSwitch(CoordinatorEntity, SwitchEntity):
         return "Sabbath mode"
 
     @property
-    def is_on(self):
-        return self._is_on
-
-    async def async_turn_on(self):
-        await self._hass.async_add_executor_job(
-            self._api.enable_shabbat, self._device)
-        self._is_on = True
-        self.async_write_ha_state()
-
-    async def async_turn_off(self):
-        await self._hass.async_add_executor_job(
-            self._api.disable_shabbat, self._device)
-        self._is_on = False
-        self.async_write_ha_state()
-
-    @property
     def icon(self):
         return "mdi:star-david"
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        try:
-            data = self._coordinator.data
+    @property
+    def is_on(self):
+        return self._coordinator.data[self._device].shabbat
 
-            if data is None:
-                pass
-            else:
-                if data.shabbat == True:
-                    self._is_on = False
-                    self.async_write_ha_state()
-                else:
-                    self._is_on = True
-                    self.async_write_ha_state()
-        except KeyError:
-            return
+    async def async_turn_on(self):
+        await self._coordinator.dolphin.enable_shabbat(self._coordinator.dolphin._user, self._device)
+        self._coordinator.data[self._device].shabbat = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self):
+        await self._coordinator.dolphin.disable_shabbat(self._coordinator.dolphin._user, self._device)
+        self._coordinator.data[self._device].shabbat = False
+        self.async_write_ha_state()

@@ -1,54 +1,37 @@
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.core import HomeAssistant
-from .const import UPDATE_INTERVAL
 import logging
+from .API.dolphin import Dolphin, User, Device
 
-_LOGGER = logging.getLogger(__name__)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+from .const import (
+    DOMAIN,
+    UPDATE_INTERVAL,
+)
+
+_LOGGER: logging.Logger = logging.getLogger(__package__)
 
 
-class ClimateCoordinator(DataUpdateCoordinator):
+class UpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching Dolphin data from single endpoint."""
 
-    def __init__(self, hass: HomeAssistant, api, device) -> None:
+    def __init__(
+            self, hass: HomeAssistant, dolphin: Dolphin, user: User):
+        """Initialize global Dolphin data updater."""
+        self.dolphin = dolphin
+        self.user: User = user
         super().__init__(
-            hass,
-            _LOGGER,
-            name="ClimateCoordinator",
-            update_interval=UPDATE_INTERVAL,
+            hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL,
         )
-        self._api = api
-        self._device = device
-        self._hass = hass
 
-    async def _async_update_data(self):
-        """Fetch data from the API endpoint."""
+    def update_listeners(self) -> None:
+        """Call update on all listeners."""
+        for update_callback in self._listeners:
+            update_callback()
 
+    async def _async_update_data(self) -> dict[str, Device]:
+        """Fetch data from Dolphin."""
         try:
-            return await self._hass.async_add_executor_job(
-                self._api.get_main_screen_data, self._device)
-
-        except Exception as exceptioe:
-            raise UpdateFailed(f"Error communicating with API: {exceptioe}") from exceptioe
-
-
-class EnergyCoordinator(DataUpdateCoordinator):
-
-    def __init__(self, hass: HomeAssistant, api, device) -> None:
-        super().__init__(
-            hass,
-            _LOGGER,
-            name="EnergyCoordinator",
-            update_interval=UPDATE_INTERVAL,
-        )
-        self._api = api
-        self._device = device
-        self._hass = hass
-
-    async def _async_update_data(self):
-        """Fetch data from the API endpoint."""
-
-        try:
-            return await self._hass.async_add_executor_job(
-                self._api.get_energy, self._device)
-
-        except Exception as exceptioe:
-            raise UpdateFailed(f"Error communicating with API: {exceptioe}") from exceptioe
+            return await self.dolphin.update(self.user)
+        except:
+            pass

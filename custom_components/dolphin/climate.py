@@ -1,63 +1,58 @@
-"""Adds support for generic thermostat units."""
-
 import logging
-from .const import DOMAIN
 from typing import Any
-
+from typing import Callable, List
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.typing import HomeAssistantType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from .coordinator import UpdateCoordinator
+from .const import (
+    DOMAIN,
+)
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
     ClimateEntity,
 )
-
-from .coordinator import ClimateCoordinator
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.components.climate.const import HVACMode
-from homeassistant.core import callback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
 
 OPERATION_LIST = [HVACMode.HEAT, HVACMode.OFF]
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 1
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add water heater entities for a config entry."""
-    entities = []
-    dolphin = hass.data[DOMAIN][config_entry.entry_id]
 
-    for device in dolphin.devices:
-        coordinator = ClimateCoordinator(hass, dolphin, device.device_name)
-        # hass.async_create_task(coordinator.async_request_refresh())
-        entities.append(DolphinWaterHeater(coordinator=coordinator, hass=hass, api=dolphin,
-                                           device=device))
+async def async_setup_entry(
+        hass: HomeAssistantType,
+        entry: ConfigEntry,
+        async_add_entities: Callable[[List[Entity], bool], None],
+) -> None:
+    coordinator: UpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    switches = []
 
-    async_add_entities(entities)
+    for device in coordinator.data.keys():
+        switches.append(DolphinWaterHeater(hass=hass, coordinator=coordinator, device=device))
+
+    async_add_entities(switches)
 
 
 class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     _attr_hvac_modes = OPERATION_LIST
     _attr_temperature_unit = TEMP_CELSIUS
 
-    def __init__(self, coordinator: DataUpdateCoordinator, hass, api, device):
+    def __init__(self, hass, coordinator, device):
         CoordinatorEntity.__init__(self, coordinator)
-        self._api = api
-        self._device = device.device_name
+        self._device = device
         self._hass = hass
 
-        if device.nickname is None:
-            self._name = "Dolphin"
-        else:
-            self._name = device.nickname
+        self._name = device
 
         self._unit = TEMP_CELSIUS
         self._current_temperature = None
-        self._attr_target_temperature = 20
-        self._attr_target_temperature_step = 0.1
+        self._attr_target_temperature_step = 1
 
         self._attr_max_temp = 71
         self._attr_min_temp = 20
@@ -68,6 +63,10 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
 
         self._attr_hvac_mode = HVACMode.OFF
         self._coordinator = coordinator
+
+        self._name = [i for i in self._coordinator.user.device if i['deviceName'] == device][0]['nickname']
+        if self._name == None:
+            self._name = "Dolphin"
 
         self._available = True
 
@@ -92,12 +91,13 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     @property
     def current_temperature(self):
         """Return the sensor temperature."""
-        return self._current_temperature
+        return self._coordinator.data[self._device].temperature
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._attr_target_temperature
+        return self._coordinator.data[self._device].targetTemperature if self._coordinator.data[
+            self._device].power else 0
 
     @property
     def target_temperature_step(self):
@@ -106,7 +106,7 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:
         """Return current operation."""
-        return self._attr_hvac_mode
+        return HVACMode.HEAT if self._coordinator.data[self._device].power else HVACMode.OFF
 
     @property
     def min_temp(self):
@@ -121,66 +121,40 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     @property
     def available(self):
         """Return availability."""
-        return self._available
+        return not self._coordinator.data[self._device].shabbat
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set temperature."""
-        if kwargs.get('temperature') >= float(self._current_temperature):
-            self._attr_target_temperature = kwargs.get('temperature')
-            await self._hass.async_add_executor_job(
-                self._api.turn_on_temperature, self._device, kwargs.get('temperature'))
+
+        if kwargs.get('temperature') >= self._coordinator.data[self._device].temperature:
+            await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user,
+                                                                kwargs.get('temperature'), self._device)
         else:
-            self._attr_target_temperature = float(self._current_temperature)
-        self._hass.async_create_task(self._coordinator.async_request_refresh())
+            self._coordinator.data[self._device].targetTemperature = self._coordinator.data[self._device].temperature
+
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set HVAC mode."""
-        if hvac_mode == HVACMode.OFF and self._attr_hvac_mode == HVACMode.HEAT:
-            await self._hass.async_add_executor_job(
-                self._api.turn_off_manually, self._device)
-            self._attr_hvac_mode = HVACMode.OFF
-            self._attr_target_temperature = None
-        elif hvac_mode == HVACMode.OFF and self._attr_hvac_mode == HVACMode.OFF:
-            await self._hass.async_add_executor_job(
-                self._api.turn_on_manually, self._device)
-            self._attr_target_temperature = self._attr_max_temp
-            self._attr_hvac_mode = HVACMode.HEAT
-        elif hvac_mode == HVACMode.HEAT:
-            await self._hass.async_add_executor_job(
-                self._api.turn_on_manually, self._device)
-            self._attr_hvac_mode = HVACMode.HEAT
-            self._attr_target_temperature = self._attr_max_temp
-        else:
-            pass
-        self._hass.async_create_task(self._coordinator.async_request_refresh())
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
+        if hvac_mode == HVACMode.OFF and not self._coordinator.data[self._device].power:
 
-        try:
-            data = self._coordinator.data
+            await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user, self._attr_max_temp,
+                                                                self._device)
+            await self.coordinator.async_request_refresh()
+            self.async_write_ha_state()
 
-            if data is None:
-                pass
-            else:
-                if data.shabbat:
-                    self._available = True
-                else:
-                    self._available = False
+        elif hvac_mode == HVACMode.OFF and self._coordinator.data[self._device].power:
 
-                if data.power.lower() == "off":
-                    self._attr_hvac_mode = HVACMode.OFF
-                else:
-                    self._attr_hvac_mode = HVACMode.HEAT
+            await self._coordinator.dolphin.turn_off_manually(self._coordinator.dolphin._user, self._device)
+            await self.coordinator.async_request_refresh()
+            self.async_write_ha_state()
 
-                self._current_temperature = data.temperature
 
-                if data.target != "null":
-                    self._attr_target_temperature = data.target
-                else:
-                    self._attr_target_temperature = self._current_temperature
+        elif not self._coordinator.data[self._device].power:
 
-        except KeyError:
-            return
-        self.async_write_ha_state()
+            await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user, self._attr_max_temp,
+                                                                self._device)
+            await self.coordinator.async_request_refresh()
+            self.async_write_ha_state()

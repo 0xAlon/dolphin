@@ -1,43 +1,67 @@
 """Dolphin integration."""
-from __future__ import annotations
-from .API import dolphinAPI
+
+from .API.dolphin import Dolphin, User
+
+from .const import (
+    DOMAIN,
+    PLATFORMS,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+)
+
+import asyncio
+from .coordinator import UpdateCoordinator
 import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    DOMAIN,
-    PLATFORMS
-)
-
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up edge from a config entry."""
-
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     username = entry.data.get(CONF_USERNAME)
     password = entry.data.get(CONF_PASSWORD)
 
-    try:
-        dolphin = await hass.async_add_executor_job(dolphinAPI.dolphinAPI, username, password)
-    except Exception as ex:
-        raise ConfigEntryNotReady(f"Error connecting to API : {ex}") from ex
+    async with Dolphin() as dolphin:
+        user = User
+        user.email = username
+        user = await dolphin.getAPIkey(user, password)
+        user = await dolphin.getDevices(user)
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = dolphin
+        coordinator = UpdateCoordinator(hass, dolphin, user)
+        await coordinator.async_refresh()
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        if not coordinator.last_update_success:
+            raise ConfigEntryNotReady
+
+        hass.data.setdefault(DOMAIN, {})
+        hass.data[DOMAIN][entry.entry_id] = coordinator
+
+        # Set up all platforms for this device/entry.
+        for platform in PLATFORMS:
+            hass.async_create_task(
+                hass.config_entries.async_forward_entry_setup(entry, platform)
+            )
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+    """Unload Dolphin config entry."""
 
-    return unload_ok
+    # Unload entities for this entry/device.
+    await asyncio.gather(
+        *(
+            hass.config_entries.async_forward_entry_unload(entry, component)
+            for component in PLATFORMS
+        )
+    )
+
+    # Cleanup
+    del hass.data[DOMAIN][entry.entry_id]
+    if not hass.data[DOMAIN]:
+        del hass.data[DOMAIN]
+
+    return True
