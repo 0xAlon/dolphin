@@ -1,4 +1,5 @@
 import logging
+from re import T
 from typing import Callable, List
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -64,14 +65,19 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         """Return availability."""
         if self._coordinator.data[self._device].shabbat:
             return False
+        if self._coordinator.data[self._device].power and not self._is_on:
+            return False
         if self._coordinator.data[self._device].showerTemperature != None:
             if len(self._coordinator.data[self._device].showerTemperature) > self._id - 1:
                 return True
+
 
         return False
 
     @property
     def is_on(self):
+        if not self._coordinator.data[self._device].power:
+            self._is_on = False
         return self._is_on
 
     async def async_turn_on(self):
@@ -79,7 +85,7 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         current_temp = self._coordinator.data[self._device].temperature
         drop_temperature = self._coordinator.data[self._device].showerTemperature[self._id - 1]['temp']
 
-        if current_temp <= drop_temperature:
+        if current_temp <= drop_temperature and self._coordinator.data[self._device].power == False:
             await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user, drop_temperature,
                                                                 self._device)
             self._is_on = True
