@@ -48,3 +48,4 @@ A device is created for each dolphin unit. Each device contains:
 - `Climate sensor`
 - `Electric current sensor`
 - `Sabbath mode switch`
+- `Shower switches`
