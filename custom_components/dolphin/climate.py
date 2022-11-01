@@ -6,9 +6,8 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import UpdateCoordinator
-from .const import (
-    DOMAIN,
-)
+from homeassistant.helpers.entity import DeviceInfo
+from .const import DOMAIN
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
@@ -76,8 +75,8 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         return self._name
 
     @property
-    def entity_id(self):
-        return f"climate.dolphin_{self._device.lower()}"
+    def unique_id(self):
+        return f"climate.{self._device.lower()}"
 
     @property
     def icon(self):
@@ -123,6 +122,16 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         """Return availability."""
         return not self._coordinator.data[self._device].shabbat
 
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return the device info."""
+        return DeviceInfo(
+            identifiers={
+                (DOMAIN, self._device)
+            },
+            name=self.name,
+        )
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set temperature."""
 
@@ -150,7 +159,6 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
             await self._coordinator.dolphin.turn_off_manually(self._coordinator.dolphin._user, self._device)
             await self.coordinator.async_request_refresh()
             self.async_write_ha_state()
-
 
         elif not self._coordinator.data[self._device].power:
 

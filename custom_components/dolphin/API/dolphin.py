@@ -142,6 +142,17 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/disableShabbat.php", "POST", data)):
             pass
 
+    async def energy_meter(self, user: User, deviceName: str):
+        data = {
+            "deviceName": deviceName,
+            "email": user.email,
+            "API_Key": user.api,
+        }
+
+        if not (data := await self.request("/HA/V1/isEnergyMeter.php", "POST", data)):
+            return 0
+        return data['isEnergyMeter']
+
     async def disconnect(self) -> None:
         """Disconnect from the WebSocket of a Dolphin device."""
         if not self._client or not self.connected:

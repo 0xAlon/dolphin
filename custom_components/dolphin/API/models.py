@@ -1,4 +1,7 @@
 from typing import Any
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class User:

@@ -23,12 +23,7 @@ class UpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL,
         )
-
-    def update_listeners(self) -> None:
-        """Call update on all listeners."""
-        for update_callback in self._listeners:
-            update_callback()
-
+        
     async def _async_update_data(self) -> dict[str, Device]:
         """Fetch data from Dolphin."""
         try:

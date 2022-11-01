@@ -1,5 +1,4 @@
 import logging
-from re import T
 from typing import Callable, List
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -7,6 +6,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import UpdateCoordinator
+from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
 from .const import (
     DOMAIN,
 )
@@ -42,10 +42,11 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         self._coordinator = coordinator
         self._device = device
         self._is_on = False
+        self.entity_id = async_generate_entity_id(DOMAIN + ".{}", None or f"{device}_drop{index}", hass=hass)
 
     @property
-    def entity_id(self):
-        return f"switch.dolphin_drop{self._id}_{self._device.lower()}"
+    def unique_id(self):
+        return self.entity_id
 
     @property
     def name(self):
@@ -71,7 +72,6 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
             if len(self._coordinator.data[self._device].showerTemperature) > self._id - 1:
                 return True
 
-
         return False
 
     @property
@@ -79,6 +79,15 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         if not self._coordinator.data[self._device].power:
             self._is_on = False
         return self._is_on
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return the device info."""
+        return DeviceInfo(
+            identifiers={
+                (DOMAIN, self._device)
+            },
+        )
 
     async def async_turn_on(self):
 
@@ -107,10 +116,11 @@ class ShabbatSwitch(CoordinatorEntity, SwitchEntity):
         self._hass = hass
         self._coordinator = coordinator
         self._device = device
+        self.entity_id = async_generate_entity_id(DOMAIN + ".{}", None or f"{device}_sabbath_mode", hass=hass)
 
     @property
-    def entity_id(self):
-        return f"switch.dolphin_{self._device.lower()}"
+    def unique_id(self):
+        return self.entity_id
 
     @property
     def name(self):
@@ -119,6 +129,16 @@ class ShabbatSwitch(CoordinatorEntity, SwitchEntity):
     @property
     def icon(self):
         return "mdi:star-david"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return the device info."""
+        return DeviceInfo(
+            identifiers={
+                (DOMAIN, self._device)
+            },
+            name=self.name,
+        )
 
     @property
     def is_on(self):
