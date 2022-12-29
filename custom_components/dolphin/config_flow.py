@@ -59,7 +59,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         async with Dolphin() as dolphin:
             user = User
             user.email = username
-            user = await dolphin.getAPIkey(user, password)
+            user = await dolphin.getAPIKey(user, password)
             if user.api != "failed":
                 return True
         return False

@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     async with Dolphin() as dolphin:
         user = User
         user.email = username
-        user = await dolphin.getAPIkey(user, password)
+        user = await dolphin.getAPIKey(user, password)
         user = await dolphin.getDevices(user)
 
         coordinator = UpdateCoordinator(hass, dolphin, user)

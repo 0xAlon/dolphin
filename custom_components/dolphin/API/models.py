@@ -31,6 +31,7 @@ class Device:
     targetTemperature: int = None
     showerTemperature: dict[int: int] = None
     shabbat: bool = False
+    fixedTemperature: bool = False
 
     def __init__(self, data: dict[str, Any]) -> None:
         self.update_from_dict(data)
@@ -57,5 +58,10 @@ class Device:
 
         if _shabbat := data.get("Shabbat"):
             self.shabbat = True if _shabbat == "ON" else False
+
+        if _fixedTemperature := data.get("fixedTemperature"):
+            self.fixedTemperature = True if _fixedTemperature == "ON" else False
+        else:
+            self.fixedTemperature = False
 
         return self

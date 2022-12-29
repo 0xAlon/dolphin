@@ -76,7 +76,7 @@ class Dolphin:
 
         return self._device
 
-    async def getAPIkey(self, user: User, password: str) -> User:
+    async def getAPIKey(self, user: User, password: str) -> User:
         data = {
             "email": user.email,
             "password": password,
@@ -101,7 +101,7 @@ class Dolphin:
 
         return self._user
 
-    async def turn_on_temperature(self, user: User, temperature: str, deviceName: str):
+    async def turnOnManually(self, user: User, temperature: str, deviceName: str):
         data = {
             "deviceName": deviceName,
             "temperature": temperature,
@@ -112,7 +112,7 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/turnOnManually.php", "POST", data)):
             pass
 
-    async def turn_off_manually(self, user: User, deviceName: str):
+    async def turnOffManually(self, user: User, deviceName: str):
         data = {
             "deviceName": deviceName,
             "email": user.email,
@@ -122,7 +122,7 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/turnOffManually.php", "POST", data)):
             pass
 
-    async def enable_shabbat(self, user: User, deviceName: str):
+    async def enableShabbat(self, user: User, deviceName: str):
         data = {
             "deviceName": deviceName,
             "email": user.email,
@@ -132,7 +132,7 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/enableShabbat.php", "POST", data)):
             pass
 
-    async def disable_shabbat(self, user: User, deviceName: str):
+    async def disableShabbat(self, user: User, deviceName: str):
         data = {
             "deviceName": deviceName,
             "email": user.email,
@@ -142,7 +142,7 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/disableShabbat.php", "POST", data)):
             pass
 
-    async def energy_meter(self, user: User, deviceName: str):
+    async def isEnergyMeter(self, user: User, deviceName: str):
         data = {
             "deviceName": deviceName,
             "email": user.email,
@@ -152,6 +152,27 @@ class Dolphin:
         if not (data := await self.request("/HA/V1/isEnergyMeter.php", "POST", data)):
             return 0
         return data['isEnergyMeter']
+
+    async def turnOnFixedTemperature(self, user: User, deviceName: str):
+        data = {
+            "deviceName": deviceName,
+            "temperature": "60",
+            "email": user.email,
+            "API_Key": user.api,
+        }
+
+        if not (data := await self.request("/HA/V1/setFixedTemperature.php", "POST", data)):
+            pass
+
+    async def turnOffFixedTemperature(self, user: User, deviceName: str):
+        data = {
+            "deviceName": deviceName,
+            "email": user.email,
+            "API_Key": user.api,
+        }
+
+        if not (data := await self.request("/HA/V1/turnOffFixedTemperature.php", "POST", data)):
+            pass
 
     async def disconnect(self) -> None:
         """Disconnect from the WebSocket of a Dolphin device."""
