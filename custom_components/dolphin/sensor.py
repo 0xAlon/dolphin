@@ -25,7 +25,7 @@ async def async_setup_entry(
     switches = []
 
     for device in coordinator.data.keys():
-        if await coordinator.dolphin.energy_meter(coordinator.dolphin._user, device) == '1':
+        if await coordinator.dolphin.isEnergyMeter(coordinator.dolphin._user, device) == '1':
             switches.append(PowerSensor(hass=hass, coordinator=coordinator, device=device))
 
     async_add_entities(switches)

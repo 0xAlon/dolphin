@@ -23,7 +23,7 @@ class UpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL,
         )
-        
+
     async def _async_update_data(self) -> dict[str, Device]:
         """Fetch data from Dolphin."""
         try:

@@ -98,15 +98,15 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         drop_temperature = self._coordinator.data[self._device].showerTemperature[self._id - 1]['temp']
 
         if current_temp <= drop_temperature and self._coordinator.data[self._device].power == False:
-            await self._coordinator.dolphin.turn_on_temperature(self._coordinator.dolphin._user, drop_temperature,
-                                                                self._device)
+            await self._coordinator.dolphin.turnOnManually(self._coordinator.dolphin._user, drop_temperature,
+                                                           self._device)
             self._is_on = True
             await self.coordinator.async_request_refresh()
             self.async_write_ha_state()
 
     async def async_turn_off(self):
 
-        await self._coordinator.dolphin.turn_off_manually(self._coordinator.dolphin._user, self._device)
+        await self._coordinator.dolphin.turnOffManually(self._coordinator.dolphin._user, self._device)
         self._is_on = False
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
@@ -148,12 +148,12 @@ class ShabbatSwitch(CoordinatorEntity, SwitchEntity):
         return self._coordinator.data[self._device].shabbat
 
     async def async_turn_on(self):
-        await self._coordinator.dolphin.enable_shabbat(self._coordinator.dolphin._user, self._device)
+        await self._coordinator.dolphin.enableShabbat(self._coordinator.dolphin._user, self._device)
         self._coordinator.data[self._device].shabbat = True
         self.async_write_ha_state()
 
     async def async_turn_off(self):
-        await self._coordinator.dolphin.disable_shabbat(self._coordinator.dolphin._user, self._device)
+        await self._coordinator.dolphin.disableShabbat(self._coordinator.dolphin._user, self._device)
         self._coordinator.data[self._device].shabbat = False
         self.async_write_ha_state()
 
