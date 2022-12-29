@@ -46,6 +46,7 @@ The component is developed by [Alon Teplitsky](https://www.linkedin.com/in/alon-
 A device is created for each dolphin unit. Each device contains:
 
 - `Climate sensor`
-- `Electric current sensor`
+- `Electric current sensor (on supported devices)`
+- `Fixed temperature switch`
 - `Sabbath mode switch`
 - `Shower switches`
