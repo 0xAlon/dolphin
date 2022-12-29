@@ -61,5 +61,7 @@ class Device:
 
         if _fixedTemperature := data.get("fixedTemperature"):
             self.fixedTemperature = True if _fixedTemperature == "ON" else False
+        else:
+            self.fixedTemperature = False
 
         return self
