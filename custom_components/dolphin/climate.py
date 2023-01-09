@@ -138,6 +138,9 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         if kwargs.get('temperature') >= self._coordinator.data[self._device].temperature:
             await self._coordinator.dolphin.turnOnManually(self._coordinator.dolphin._user,
                                                            kwargs.get('temperature'), self._device)
+            if self._coordinator.data[self._device].fixedTemperature:
+                await self._coordinator.dolphin.turnOnFixedTemperature(self._coordinator.dolphin._user, self._device,
+                                                                       kwargs.get('temperature'))
         else:
             self._coordinator.data[self._device].targetTemperature = self._coordinator.data[self._device].temperature
 
@@ -157,6 +160,9 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         elif hvac_mode == HVACMode.OFF and self._coordinator.data[self._device].power:
 
             await self._coordinator.dolphin.turnOffManually(self._coordinator.dolphin._user, self._device)
+            if self._coordinator.data[self._device].fixedTemperature:
+                await self._coordinator.dolphin.turnOffFixedTemperature(self._coordinator.dolphin._user, self._device)
+                self._coordinator.data[self._device].fixedTemperature = False
             await self.coordinator.async_request_refresh()
             self.async_write_ha_state()
 
