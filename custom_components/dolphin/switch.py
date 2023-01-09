@@ -194,11 +194,14 @@ class FixedTemperature(CoordinatorEntity, SwitchEntity):
         return self._coordinator.data[self._device].fixedTemperature
 
     async def async_turn_on(self):
-        await self._coordinator.dolphin.turnOnFixedTemperature(self._coordinator.dolphin._user, self._device)
+        await self._coordinator.dolphin.turnOnFixedTemperature(self._coordinator.dolphin._user, self._device,
+                                                               self._coordinator.data[self._device].targetTemperature)
         self._coordinator.data[self._device].fixedTemperature = True
+        await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
 
     async def async_turn_off(self):
         await self._coordinator.dolphin.turnOffFixedTemperature(self._coordinator.dolphin._user, self._device)
         self._coordinator.data[self._device].fixedTemperature = False
+        await self.coordinator.async_request_refresh()
         self.async_write_ha_state()

@@ -153,10 +153,10 @@ class Dolphin:
             return 0
         return data['isEnergyMeter']
 
-    async def turnOnFixedTemperature(self, user: User, deviceName: str):
+    async def turnOnFixedTemperature(self, user: User, deviceName: str, temperature: str):
         data = {
             "deviceName": deviceName,
-            "temperature": "60",
+            "temperature": temperature,
             "email": user.email,
             "API_Key": user.api,
         }
