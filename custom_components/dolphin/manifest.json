@@ -5,6 +5,6 @@
   "documentation": "https://github.com/0xAlon/dolphin",
   "issue_tracker": "https://github.com/0xAlon/dolphin",
   "codeowners": ["@0xAlon"],
-  "version": "1.0.0",
+  "version": "1.0.1",
   "iot_class": "cloud_polling"
 }

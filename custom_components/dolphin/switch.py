@@ -3,7 +3,7 @@ from typing import Callable, List
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import HomeAssistantType
+import homeassistant.core
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import UpdateCoordinator
 from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
@@ -17,7 +17,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(
-        hass: HomeAssistantType,
+        hass: homeassistant.core.HomeAssistant,
         entry: ConfigEntry,
         async_add_entities: Callable[[List[Entity], bool], None],
 ) -> None:

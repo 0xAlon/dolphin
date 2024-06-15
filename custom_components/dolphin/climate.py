@@ -2,8 +2,9 @@ import logging
 from typing import Any
 from typing import Callable, List
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import HomeAssistantType
+import homeassistant.core
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import UpdateCoordinator
 from homeassistant.helpers.entity import DeviceInfo
@@ -14,7 +15,6 @@ from homeassistant.components.climate import (
     HVACMode,
     ClimateEntity,
 )
-from homeassistant.const import TEMP_CELSIUS
 from homeassistant.components.climate.const import HVACMode
 
 OPERATION_LIST = [HVACMode.HEAT, HVACMode.OFF]
@@ -25,7 +25,7 @@ PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(
-        hass: HomeAssistantType,
+        hass: homeassistant.core.HomeAssistant,
         entry: ConfigEntry,
         async_add_entities: Callable[[List[Entity], bool], None],
 ) -> None:
@@ -40,7 +40,10 @@ async def async_setup_entry(
 
 class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     _attr_hvac_modes = OPERATION_LIST
-    _attr_temperature_unit = TEMP_CELSIUS
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _enable_turn_on_off_backwards_compatibility = False
+    _attr_supported_features = (ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_OFF |
+                                ClimateEntityFeature.TURN_ON)
 
     def __init__(self, hass, coordinator, device):
         CoordinatorEntity.__init__(self, coordinator)
@@ -49,7 +52,7 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
 
         self._name = device
 
-        self._unit = TEMP_CELSIUS
+        self._unit = UnitOfTemperature.CELSIUS
         self._current_temperature = None
         self._attr_target_temperature_step = 1
 
@@ -131,6 +134,9 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
             },
             name=self.name,
         )
+
+    async def async_turn_off(self) -> None:
+        await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set temperature."""
