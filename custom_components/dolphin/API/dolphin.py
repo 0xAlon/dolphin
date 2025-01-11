@@ -23,28 +23,24 @@ class Dolphin:
     _device: dict[str, Device] | None = None
     _user: User | None = None
 
-    async def request(
-            self,
-            uri: str = "",
-            method: str = "POST",
-            data: dict[str, Any] | None = None,
-    ) -> Any:
+    def __init__(self):
+        self.ssl_context = None
+        self._close_session = True
 
+    async def create_ssl_context(self):
+        """Create the SSL context asynchronously."""
+        loop = asyncio.get_event_loop()
+        self.ssl_context = await loop.run_in_executor(None, ssl.create_default_context, cafile=certifi.where())
+
+    async def request(self, uri: str = "", method: str = "POST", data: dict[str, Any] | None = None) -> Any:
         url = URL.build(scheme="https", host=self.host, path=uri)
 
         if self.session is None:
-            ssl_context = ssl.create_default_context(cafile=certifi.where())
-            conn = aiohttp.TCPConnector(ssl=ssl_context)
+            conn = aiohttp.TCPConnector(ssl=self.ssl_context)
             self.session = aiohttp.ClientSession(connector=conn)
-            # self._close_session = True
 
         try:
-            # async with async_timeout.timeout(self.request_timeout):
-            response = await self.session.request(
-                method,
-                url,
-                data=data,
-            )
+            response = await self.session.request(method, url, data=data)
             response = await response.text("UTF-8")
 
             if "getAPIkey" not in url.path:
@@ -52,9 +48,14 @@ class Dolphin:
             return response
 
         except asyncio.TimeoutError as exception:
-            pass
+            _LOGGER.error(f"Timeout error while requesting {uri}: {exception}")
         except (aiohttp.ClientError, socket.gaierror) as exception:
-            pass
+            _LOGGER.error(f"Client error while requesting {uri}: {exception}")
+        return None
+
+    async def async_setup(self):
+        """Set up the Dolphin integration."""
+        await self.create_ssl_context()
 
     async def update(self, user: User) -> Device:
         for device in user.device:
@@ -182,21 +183,16 @@ class Dolphin:
         await self._client.close()
 
     async def close(self) -> None:
-        """Close open client (WebSocket) session."""
-        await self.disconnect()
-        if self.session and self._close_session:
+        """Close open client session and resources."""
+        if self.session:
             await self.session.close()
+        self.session = None
+        _LOGGER.info("Session closed successfully")
 
     async def __aenter__(self):
-        """Async enter.
-        Returns:
-            The Dolphin object.
-        """
+        """Async enter."""
         return self
 
     async def __aexit__(self, *_exc_info: Any) -> None:
-        """Async exit.
-        Args:
-            _exc_info: Exec type.
-        """
+        """Async exit."""
         await self.close()
