@@ -2,7 +2,7 @@ import logging
 from .API.dolphin import Dolphin, User, Device
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     DOMAIN,
@@ -27,6 +27,11 @@ class UpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Device]:
         """Fetch data from Dolphin."""
         try:
-            return await self.dolphin.update(self.user)
-        except:
-            pass
+            result = await self.dolphin.update(self.user)
+            if result is None:
+                raise UpdateFailed("No data received from Dolphin API (device may be in Shabbat mode)")
+            return result
+        except UpdateFailed:
+            raise
+        except Exception as err:
+            raise UpdateFailed(f"Error communicating with Dolphin API: {err}") from err

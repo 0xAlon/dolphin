@@ -65,8 +65,7 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
     @property
     def available(self):
         """Return availability."""
-        if self._coordinator.data[self._device].shabbat:
-            return False
+        # Removed Shabbat check - switches stay available but actions are blocked
         if self._coordinator.data[self._device].power and not self._is_on:
             return False
         if self._coordinator.data[self._device].fixedTemperature:
@@ -93,6 +92,9 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
         )
 
     async def async_turn_on(self):
+        if self._coordinator.data[self._device].shabbat:
+            _LOGGER.info("Cannot turn on drop switch during Shabbat mode")
+            return
 
         current_temp = self._coordinator.data[self._device].temperature
         drop_temperature = self._coordinator.data[self._device].showerTemperature[self._id - 1]['temp']
@@ -105,6 +107,9 @@ class DropSwitch(CoordinatorEntity, SwitchEntity):
             self.async_write_ha_state()
 
     async def async_turn_off(self):
+        if self._coordinator.data[self._device].shabbat:
+            _LOGGER.info("Cannot turn off drop switch during Shabbat mode")
+            return
 
         await self._coordinator.dolphin.turnOffManually(self._coordinator.dolphin._user, self._device)
         self._is_on = False

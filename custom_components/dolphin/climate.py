@@ -123,7 +123,8 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
     @property
     def available(self):
         """Return availability."""
-        return not self._coordinator.data[self._device].shabbat
+        # Always available - temperature data is returned even during Shabbat
+        return True
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -136,10 +137,16 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
         )
 
     async def async_turn_off(self) -> None:
+        if self._coordinator.data[self._device].shabbat:
+            _LOGGER.info("Cannot turn off during Shabbat mode")
+            return
         await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set temperature."""
+        if self._coordinator.data[self._device].shabbat:
+            _LOGGER.info("Cannot set temperature during Shabbat mode")
+            return
 
         if kwargs.get('temperature') >= self._coordinator.data[self._device].temperature:
             await self._coordinator.dolphin.turnOnManually(self._coordinator.dolphin._user,
@@ -155,6 +162,9 @@ class DolphinWaterHeater(CoordinatorEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set HVAC mode."""
+        if self._coordinator.data[self._device].shabbat:
+            _LOGGER.info("Cannot change HVAC mode during Shabbat mode")
+            return
 
         if hvac_mode == HVACMode.OFF and not self._coordinator.data[self._device].power:
 

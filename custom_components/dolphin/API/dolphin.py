@@ -65,15 +65,22 @@ class Dolphin:
                 "email": user.email,
                 "API_Key": user.api,
             }
-            if not (data := await self.request("/HA/V1/getMainScreenData.php", "POST", data)):
-                pass
+
+            response = await self.request("/HA/V1/getMainScreenData.php", "POST", data)
+
+            # DIAGNOSTIC: Log what the API returns (especially during Shabbat)
+            _LOGGER.debug("Dolphin API response for device '%s': %s", device['deviceName'], response)
+
+            if not response:
+                _LOGGER.debug("No data received for device %s (possibly in Shabbat mode), keeping last known state", device['deviceName'])
+                continue
 
             if self._device is None:
-                self._device = {device['deviceName']: Device(data)}
+                self._device = {device['deviceName']: Device(response)}
             elif device['deviceName'] not in self._device:
-                self._device.update({device['deviceName']: Device(data)})
+                self._device.update({device['deviceName']: Device(response)})
             else:
-                self._device[device['deviceName']] = self._device[device['deviceName']].update_from_dict(data)
+                self._device[device['deviceName']] = self._device[device['deviceName']].update_from_dict(response)
 
         return self._device
 
