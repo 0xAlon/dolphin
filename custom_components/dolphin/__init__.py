@@ -30,13 +30,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     user = User
     user.email = username
     user = await dolphin.getAPIKey(user, password)
+    if not user.api:
+        raise ConfigEntryNotReady("Could not get an API key from the Dolphin API")
+
     user = await dolphin.getDevices(user)
+    if not user.device:
+        raise ConfigEntryNotReady("Could not get the device list from the Dolphin API")
 
-    coordinator = UpdateCoordinator(hass, dolphin, user)
-    await coordinator.async_refresh()
-
-    if not coordinator.last_update_success:
-        raise ConfigEntryNotReady
+    coordinator = UpdateCoordinator(hass, entry, dolphin, user)
+    # Raises ConfigEntryNotReady on failure, so Home Assistant retries setup.
+    await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator

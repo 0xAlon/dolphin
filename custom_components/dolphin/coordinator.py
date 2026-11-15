@@ -2,7 +2,8 @@ import logging
 from .API.dolphin import Dolphin, User, Device
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     DOMAIN,
@@ -16,17 +17,26 @@ class UpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Dolphin data from single endpoint."""
 
     def __init__(
-            self, hass: HomeAssistant, dolphin: Dolphin, user: User):
+            self, hass: HomeAssistant, entry: ConfigEntry, dolphin: Dolphin, user: User):
         """Initialize global Dolphin data updater."""
         self.dolphin = dolphin
         self.user: User = user
         super().__init__(
-            hass, _LOGGER, name=DOMAIN, update_interval=UPDATE_INTERVAL,
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=DOMAIN,
+            update_interval=UPDATE_INTERVAL,
         )
 
     async def _async_update_data(self) -> dict[str, Device]:
         """Fetch data from Dolphin."""
         try:
-            return await self.dolphin.update(self.user)
-        except:
-            pass
+            data = await self.dolphin.update(self.user)
+        except Exception as err:
+            raise UpdateFailed(f"Error fetching Dolphin data: {err}") from err
+
+        if not data:
+            raise UpdateFailed("No data received from the Dolphin API")
+
+        return data
